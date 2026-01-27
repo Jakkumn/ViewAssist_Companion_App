@@ -17,5 +17,9 @@
   "issue_tracker": "https://github.com/msp1974/ViewAssist_Companion_App/issues",
   "requirements": ["wyoming>=1.7.1"],
   "version": "0.9.1",
-  "zeroconf": ["_vaca._tcp.local."]
+  "zeroconf": ["_vaca._tcp.local."],
+  "loggers": [
+    "custom_components.vaca",
+    "wyoming"
+  ]
 }
