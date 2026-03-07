@@ -53,6 +53,7 @@ async def async_setup_entry(
             WyomingSatelliteWakeWordSelect(device),
             WyomingSatelliteWakeWordSoundSelect(device),
             WyomingSatelliteScreenTimeoutSelect(device),
+            WyomingSatelliteWakeWordEngineSelect(device),
         ]
     )
 
@@ -224,3 +225,32 @@ class WyomingSatelliteScreenTimeoutSelect(
         self._attr_current_option = option
         self.async_write_ha_state()
         self._device.set_custom_setting(self.entity_description.key, int(option))
+
+
+class WyomingSatelliteWakeWordEngineSelect(
+    VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
+):
+    """Entity to represent wake word engine setting."""
+
+    entity_description = SelectEntityDescription(
+        key="wake_word_engine",
+        translation_key="wake_word_engine",
+        entity_category=EntityCategory.CONFIG,
+    )
+    _attr_should_poll = False
+    _attr_current_option = "openwakeword"
+    _attr_options = ["openwakeword", "microwakeword"]
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None and state.state in self.options:
+            await self.async_select_option(state.state)
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        self._attr_current_option = option
+        self.async_write_ha_state()
+        self._device.set_custom_setting("wake_word_engine", option)
