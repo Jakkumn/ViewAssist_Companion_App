@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, Any
 
 from homeassistant.components.number import NumberEntityDescription, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -60,7 +61,58 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class WyomingSatelliteMicGainNumber(VASatelliteEntity, RestoreNumber):
+class BaseNumberEntity(VASatelliteEntity, RestoreNumber):
+    """Base class for number entities."""
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None:
+            await self.async_set_native_value(float(state.state))
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set new value."""
+        await self.update_number(value)
+
+    async def update_number(self, value: float, send_to_device: bool = True) -> None:
+        """Update number value."""
+        self._attr_native_value = int(
+            max(self._attr_native_min_value, min(self._attr_native_max_value, value))
+        )
+        self.async_write_ha_state()
+
+        if send_to_device:
+            self._device.set_custom_setting(self.entity_description.key, value)
+
+
+class BaseFeedbackNumber(BaseNumberEntity):
+    """Base class for numbers that receive feedback from device."""
+
+    _listener_class = "settings_update"
+
+    async def async_added_to_hass(self) -> None:
+        """Call when entity about to be added to hass."""
+        await super().async_added_to_hass()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{self._device.device_id}_{self._listener_class}",
+                self.status_update,
+            )
+        )
+
+    async def status_update(self, data: dict[str, Any]) -> None:
+        """Handle status update."""
+        if settings := data.get("settings"):
+            if self.entity_description.key in settings:
+                setting_value = settings[self.entity_description.key]
+                await self.update_number(setting_value, send_to_device=False)
+
+
+class WyomingSatelliteMicGainNumber(BaseNumberEntity):
     """Entity to represent mic gain amount."""
 
     entity_description = NumberEntityDescription(
@@ -74,23 +126,15 @@ class WyomingSatelliteMicGainNumber(VASatelliteEntity, RestoreNumber):
     _attr_native_max_value = 10
     _attr_native_value = 0
 
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to Home Assistant."""
-        await super().async_added_to_hass()
-
-        state = await self.async_get_last_state()
-        if state is not None:
-            await self.async_set_native_value(float(state.state))
-
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
         mic_gain = int(max(-10, min(10, value)))
         self._attr_native_value = mic_gain
         self.async_write_ha_state()
-        self._device.set_custom_setting("mic_gain", mic_gain)
+        self._device.set_custom_setting(self.entity_description.key, mic_gain)
 
 
-class WyomingSatelliteNotificationVolumeNumber(VASatelliteEntity, RestoreNumber):
+class WyomingSatelliteNotificationVolumeNumber(BaseFeedbackNumber):
     """Entity to represent notification volume multiplier."""
 
     entity_description = NumberEntityDescription(
@@ -108,6 +152,7 @@ class WyomingSatelliteNotificationVolumeNumber(VASatelliteEntity, RestoreNumber)
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._attr_native_max_value = self._device.getMaxNotificationVolume()
         last_number_data = await self.async_get_last_number_data()
         if (last_number_data is not None) and (
             last_number_data.native_value is not None
@@ -116,14 +161,11 @@ class WyomingSatelliteNotificationVolumeNumber(VASatelliteEntity, RestoreNumber)
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
-        self._attr_native_value = int(
-            max(_MIN_SOUND_VOLUME, min(_MAX_SOUND_VOLUME, value))
-        )
-        self.async_write_ha_state()
-        self._device.set_custom_setting("notification_volume", int(value * 10))
+        self._attr_native_max_value = self._device.getMaxNotificationVolume()
+        await super().async_set_native_value(value)
 
 
-class WyomingSatelliteMusicVolumeNumber(VASatelliteEntity, RestoreNumber):
+class WyomingSatelliteMusicVolumeNumber(BaseFeedbackNumber):
     """Entity to represent media volume multiplier."""
 
     entity_description = NumberEntityDescription(
@@ -141,6 +183,7 @@ class WyomingSatelliteMusicVolumeNumber(VASatelliteEntity, RestoreNumber):
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._attr_native_max_value = self._device.getMaxMusicVolume()
         last_number_data = await self.async_get_last_number_data()
         if (last_number_data is not None) and (
             last_number_data.native_value is not None
@@ -149,14 +192,11 @@ class WyomingSatelliteMusicVolumeNumber(VASatelliteEntity, RestoreNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
-        self._attr_native_value = int(
-            max(_MIN_SOUND_VOLUME, min(_MAX_SOUND_VOLUME, value))
-        )
-        self.async_write_ha_state()
-        self._device.set_custom_setting("music_volume", int(value * 10))
+        self._attr_native_max_value = self._device.getMaxMusicVolume()
+        await super().async_set_native_value(value)
 
 
-class WyomingSatelliteDuckingVolumeNumber(VASatelliteEntity, RestoreNumber):
+class WyomingSatelliteDuckingVolumeNumber(BaseNumberEntity):
     """Entity to represent media volume multiplier."""
 
     entity_description = NumberEntityDescription(
@@ -166,14 +206,15 @@ class WyomingSatelliteDuckingVolumeNumber(VASatelliteEntity, RestoreNumber):
         entity_category=EntityCategory.CONFIG,
     )
     _attr_should_poll = False
-    _attr_native_min_value = 0
-    _attr_native_max_value = 10
-    _attr_native_step = 0.1
+    _attr_native_min_value = _MIN_SOUND_VOLUME
+    _attr_native_max_value = _MAX_SOUND_VOLUME
+    _attr_native_step = 1
     _attr_native_value = 1
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
         await super().async_added_to_hass()
+        self._attr_native_max_value = self._device.getMaxMusicVolume()
         last_number_data = await self.async_get_last_number_data()
         if (last_number_data is not None) and (
             last_number_data.native_value is not None
@@ -182,9 +223,11 @@ class WyomingSatelliteDuckingVolumeNumber(VASatelliteEntity, RestoreNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
-        self._attr_native_value = int(max(0, min(10, value)))
+        self._attr_native_value = int(
+            max(self._attr_native_min_value, min(self._attr_native_max_value, value))
+        )
         self.async_write_ha_state()
-        self._device.set_custom_setting("ducking_volume", value * 10)
+        self._device.set_custom_setting(self.entity_description.key, value)
 
 
 class WyomingSatelliteScreenBrightnessNumber(VASatelliteEntity, RestoreNumber):
@@ -214,7 +257,7 @@ class WyomingSatelliteScreenBrightnessNumber(VASatelliteEntity, RestoreNumber):
         screen_brightness = int(max(0, min(100, value)))
         self._attr_native_value = screen_brightness
         self.async_write_ha_state()
-        self._device.set_custom_setting("screen_brightness", screen_brightness)
+        self._device.set_custom_setting(self.entity_description.key, screen_brightness)
 
 
 class WyomingSatelliteWakeWordThresholdNumber(VASatelliteEntity, RestoreNumber):

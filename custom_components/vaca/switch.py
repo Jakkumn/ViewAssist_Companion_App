@@ -46,8 +46,6 @@ async def async_setup_entry(
         WyomingSatelliteContinueConversationSwitch(device),
         WyomingSatelliteAlarmSwitch(device),
         WyomingSatelliteScreenOnWakeWordSwitch(device),
-        WyomingSatelliteAdvancedGainSwitch(device),
-        WyomingSatelliteVoiceEnhancerSwitch(device),
         WyomingSatelliteScreenSaverSwitch(device),
     ]
 
@@ -345,30 +343,6 @@ class WyomingSatelliteScreenOnMotionSwitch(BaseSwitch):
         translation_key="screen_on_motion",
         icon="mdi:motion-sensor",
         entity_category=EntityCategory.CONFIG,
-    )
-    default_on = False
-
-
-class WyomingSatelliteAdvancedGainSwitch(BaseSwitch):
-    """Entity to control advanced gain setting."""
-
-    entity_description = SwitchEntityDescription(
-        key="advanced_gain",
-        translation_key="advanced_gain",
-        icon="mdi:amplifier",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    )
-    default_on = False
-
-
-class WyomingSatelliteVoiceEnhancerSwitch(BaseSwitch):
-    """Entity to control voice enhancer setting."""
-
-    entity_description = SwitchEntityDescription(
-        key="voice_enhancer",
-        translation_key="voice_enhancer",
-        icon="mdi:account-voice",
-        entity_category=EntityCategory.DIAGNOSTIC,
     )
     default_on = False
 

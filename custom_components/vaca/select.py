@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+import logging
+from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.components.assist_pipeline import (
     AssistPipelineSelect,
@@ -14,6 +15,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import restore_state
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -31,6 +36,8 @@ _NOISE_SUPPRESSION_LEVEL: Final = {
     "max": 4,
 }
 _DEFAULT_NOISE_SUPPRESSION_LEVEL: Final = "off"
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -50,9 +57,11 @@ async def async_setup_entry(
             WyomingSatellitePipelineSelect(hass, device),
             WyomingSatelliteNoiseSuppressionLevelSelect(device),
             WyomingSatelliteVadSensitivitySelect(hass, device),
+            WyomingSatelliteWakeWordEngineSelect(device),
             WyomingSatelliteWakeWordSelect(device),
             WyomingSatelliteWakeWordSoundSelect(device),
             WyomingSatelliteScreenTimeoutSelect(device),
+            WyomingSatelliteScreenOrientationModeSelect(device),
         ]
     )
 
@@ -147,6 +156,7 @@ class WyomingSatelliteWakeWordSelect(
                     wake_options = [
                         model.name.replace("_", " ").title()
                         for model in wake_program.models
+                        if model.attribution.name in [self._device.wakeword_engine, ""]
                     ]
         return wake_options
 
@@ -160,6 +170,18 @@ class WyomingSatelliteWakeWordSelect(
         # Default to the first available option if no state is found
         elif self.options:
             await self.async_select_option(self.options[0])
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{self._device.device_id}_wakewords_update",
+                self.test,
+            )
+        )
+
+    async def test(self, _data: dict[str, Any]) -> None:
+        """Test method to trigger state update."""
+        self.async_write_ha_state()
 
     async def async_select_option(self, option: str) -> None:
         """Select an option."""
@@ -224,3 +246,77 @@ class WyomingSatelliteScreenTimeoutSelect(
         self._attr_current_option = option
         self.async_write_ha_state()
         self._device.set_custom_setting(self.entity_description.key, int(option))
+
+
+class WyomingSatelliteWakeWordEngineSelect(
+    VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
+):
+    """Entity to represent wake word engine setting."""
+
+    entity_description = SelectEntityDescription(
+        key="wake_word_engine",
+        translation_key="wake_word_engine",
+        entity_category=EntityCategory.CONFIG,
+    )
+    _attr_should_poll = False
+    _attr_current_option = "openwakeword"
+    _attr_options = ["openwakeword", "microwakeword"]
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None and state.state in self.options:
+            await self.async_select_option(state.state)
+        else:
+            await self.async_select_option(self._attr_current_option)
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        self._attr_current_option = option
+        self._device.wakeword_engine = option
+
+        async_dispatcher_send(
+            self.hass,
+            f"{DOMAIN}_{self._device.device_id}_wakewords_update",
+            {"engine": option},
+        )
+
+        self.async_write_ha_state()
+        self._device.set_custom_setting("wake_word_engine", option)
+
+
+class WyomingSatelliteScreenOrientationModeSelect(
+    VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
+):
+    """Entity to represent screen orientation mode setting."""
+
+    entity_description = SelectEntityDescription(
+        key="screen_orientation_mode",
+        translation_key="screen_orientation_mode",
+        entity_category=EntityCategory.CONFIG,
+    )
+    _attr_should_poll = False
+    _attr_current_option = "auto"
+    _attr_options = [
+        "auto",
+        "portrait",
+        "landscape",
+        "reverse_portrait",
+        "reverse_landscape",
+    ]
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None and state.state in self.options:
+            await self.async_select_option(state.state)
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        self._attr_current_option = option
+        self.async_write_ha_state()
+        self._device.set_custom_setting("screen_orientation_mode", option)

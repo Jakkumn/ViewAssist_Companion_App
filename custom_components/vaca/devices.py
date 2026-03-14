@@ -22,6 +22,7 @@ class VASatelliteDevice(SatelliteDevice):
     info: Info | None = None
     custom_settings: dict[str, Any] | None = None
     capabilities: dict[str, Any] | None = None
+    wakeword_engine: str | None = None
 
     _custom_settings_listener: Callable[[str | None, Any | None], None] | None = None
     _custom_action_listener: Callable[[Any, Any], None] | None = None
@@ -120,3 +121,15 @@ class VASatelliteDevice(SatelliteDevice):
                 if sensor.get("type") == 8:  # Proximity type
                     return True
         return False
+
+    def getMaxMusicVolume(self) -> int | None:
+        """Get max music volume."""
+        if self.capabilities and (audio := self.capabilities.get("audio")):
+            return audio.get("max_music_volume")
+        return 10
+
+    def getMaxNotificationVolume(self) -> int | None:
+        """Get max notification volume."""
+        if self.capabilities and (audio := self.capabilities.get("audio")):
+            return audio.get("max_notification_volume")
+        return 10
