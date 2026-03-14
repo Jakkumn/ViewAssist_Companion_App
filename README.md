@@ -31,7 +31,7 @@ For issues/bugs, please log an issue [here](https://github.com/msp1974/ViewAssis
 
 ## Discord
 
-If you need help or just want to chat with like minded people, feel free to drop into the View Assist discord server [here](https://discord.gg/nvNVHWPtz)
+If you need help or just want to chat with like minded people, feel free to drop into the View Assist discord server [here](https://discord.gg/3WXXfGAf8T)
 
 ## Screenshots (using View Assist views)
 
