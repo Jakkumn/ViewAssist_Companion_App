@@ -15,7 +15,7 @@ from wyoming.info import Describe
 from wyoming.pipeline import PipelineStage, RunPipeline
 from wyoming.satellite import RunSatellite
 
-from homeassistant.components import assist_pipeline, ffmpeg, tts
+from homeassistant.components import assist_pipeline, ffmpeg, intent, tts
 from homeassistant.components.assist_pipeline import PipelineEvent
 from homeassistant.components.assist_satellite import (
     AssistSatelliteAnnouncement,
@@ -30,7 +30,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.components import intent
 
 from .client import VAAsyncTcpClient
 from .const import DOMAIN, MIN_APK_VERSION, SAMPLE_CHANNELS, SAMPLE_WIDTH
@@ -39,6 +38,7 @@ from .custom import (
     CAPABILITIES_EVENT_TYPE,
     SETTINGS_EVENT_TYPE,
     STATUS_EVENT_TYPE,
+    Capabilities,
     CustomEvent,
     PipelineEnded,
     getIntegrationVersion,
@@ -49,15 +49,10 @@ from .entity import VASatelliteEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-_SAMPLES_PER_CHUNK: Final = 1024
 _RECONNECT_SECONDS: Final = 10
 _RESTART_SECONDS: Final = 3
-_PING_TIMEOUT: Final = 5
-_PING_SEND_DELAY: Final = 2
-_PIPELINE_FINISH_TIMEOUT: Final = 1
 _TTS_SAMPLE_RATE: Final = 22050
 _ANNOUNCE_CHUNK_BYTES: Final = 2048  # 1024 samples
-_TTS_TIMEOUT_EXTRA: Final = 1.0
 
 
 async def async_setup_entry(
@@ -142,7 +137,12 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
     async def on_before_send_event_callback(self, event: Event) -> None:
         """Allow injection of events before event sent."""
 
-        if RunSatellite().is_type(event.type):
+    async def on_after_send_event_callback(self, event: Event) -> None:
+        """Allow injection of events after event sent."""
+        if Describe().is_type(event.type) and self._client:
+            await self._client.write_event(Capabilities().event())
+
+        elif RunSatellite().is_type(event.type):
             # integration version
             if self.device and self.device.custom_settings:
                 self.device.custom_settings[
@@ -165,11 +165,6 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                 # Send config event
             self._custom_settings_changed()
 
-    async def on_after_send_event_callback(self, event: Event) -> None:
-        """Allow injection of events after event sent."""
-        if Describe().is_type(event.type) and self._client:
-            await self._client.write_event(CustomEvent("capabilities").event())
-
     @callback
     def on_receive_event_callback(self, event: Event) -> tuple[bool, Event | None]:
         """Handle received custom events."""
@@ -177,14 +172,20 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
             self.stream_tts = False
             return not self.stream_tts, event
 
+        if event and Capabilities.is_type(event.type):
+            self.device.capabilities = event.data
+            async_dispatcher_send(
+                self.hass,
+                f"{DOMAIN}_{self.device.device_id}_capabilities_update",
+                event.data or {},
+            )
+            return False, None
+
         if event and CustomEvent.is_type(event.type):
             # Custom event
             evt = CustomEvent.from_event(event)
 
-            if evt.event_type == CAPABILITIES_EVENT_TYPE and evt.event_data:
-                self.device.capabilities = evt.event_data.get("capabilities", {})
-
-            elif evt.event_type in (STATUS_EVENT_TYPE, SETTINGS_EVENT_TYPE):
+            if evt.event_type in (STATUS_EVENT_TYPE, SETTINGS_EVENT_TYPE):
                 _LOGGER.debug(
                     "Received %s event: %s",
                     evt.event_type,
@@ -194,7 +195,7 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
             async_dispatcher_send(
                 self.hass,
                 f"{DOMAIN}_{self.device.device_id}_{evt.event_type}_update",
-                evt.event_data,
+                evt.event_data or {},
             )
             return False, None
 
@@ -227,11 +228,7 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
         updating listeners for speech-to-text and text-to-speech outputs.
         MSP - Added by MSP1974 2025-07-08
         """
-        if event.type == assist_pipeline.PipelineEventType.RUN_START:
-            # Fix for error when running pipeline for ask question
-            if event.data and not event.data.get("tts_output"):
-                event.data["tts_output"] = {"token": ""}
-        elif event.type == assist_pipeline.PipelineEventType.RUN_END:
+        if event.type == assist_pipeline.PipelineEventType.RUN_END:
             # Pipeline ended
             if self._client is not None:
                 self.config_entry.async_create_background_task(
@@ -260,6 +257,18 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                     event.type,
                     event.data,
                 )
+                if self._client is not None:
+                    # Update client with intent output structure
+                    self.config_entry.async_create_background_task(
+                        self.hass,
+                        self._client.write_event(
+                            CustomEvent(
+                                ACTION_EVENT_TYPE,
+                                {"action": "intent-output", "data": event.data},
+                            ).event()
+                        ),
+                        "send intent output event",
+                    )
                 if (
                     event.data.get("intent_output", {})
                     .get("response", {})
@@ -428,93 +437,6 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                 ),
                 "media player command",
             )
-
-    async def _stream_tts(self, tts_result: tts.ResultStream) -> None:
-        """Stream TTS WAV audio to satellite in chunks."""
-        assert self._client is not None
-
-        if tts_result.extension != "wav":
-            raise ValueError(
-                f"Cannot stream audio format to satellite: {tts_result.extension}"
-            )
-
-        # Track the total duration of TTS audio for response timeout
-        total_seconds = 0.0
-        start_time = time.monotonic()
-
-        try:
-            data = b"".join([chunk async for chunk in tts_result.async_stream_result()])
-
-            with io.BytesIO(data) as wav_io, wave.open(wav_io, "rb") as wav_file:
-                sample_rate = wav_file.getframerate()
-                sample_width = wav_file.getsampwidth()
-                sample_channels = wav_file.getnchannels()
-                _LOGGER.debug("Streaming %s TTS sample(s)", wav_file.getnframes())
-
-                # Start audio stream - set flag to allow streaming
-                self.stream_tts = True
-
-                timestamp = 0
-                await self._client.write_event(
-                    AudioStart(
-                        rate=sample_rate,
-                        width=sample_width,
-                        channels=sample_channels,
-                        timestamp=timestamp,
-                    ).event()
-                )
-
-                # Stream audio chunks
-                while audio_bytes := wav_file.readframes(_SAMPLES_PER_CHUNK):
-                    # If flag set to false, stop streaming
-                    if not self.stream_tts:
-                        _LOGGER.debug("TTS streaming interrupted")
-                        break
-                    chunk = AudioChunk(
-                        rate=sample_rate,
-                        width=sample_width,
-                        channels=sample_channels,
-                        audio=audio_bytes,
-                        timestamp=timestamp,
-                    )
-                    await self._client.write_event(chunk.event())
-                    timestamp += int(chunk.seconds)
-                    total_seconds += chunk.seconds
-
-                await self._client.write_event(AudioStop(timestamp=timestamp).event())
-                _LOGGER.debug("TTS streaming complete")
-        finally:
-            send_duration = time.monotonic() - start_time
-            timeout_seconds = max(0, total_seconds - send_duration + _TTS_TIMEOUT_EXTRA)
-
-            if self._played_event_received is None:
-                self._played_event_received = asyncio.Event()
-            self._played_event_received.clear()
-
-            self.config_entry.async_create_background_task(
-                self.hass,
-                self._tts_timeout(timeout_seconds, self._run_loop_id),
-                name="wyoming TTS timeout",
-            )
-
-    async def _tts_timeout(
-        self, timeout_seconds: float, run_loop_id: str | None
-    ) -> None:
-        """Force state change to IDLE in case TTS played event isn't received."""
-        await asyncio.sleep(timeout_seconds + _TTS_TIMEOUT_EXTRA)
-
-        if (
-            self._played_event_received is not None
-            and self._played_event_received.is_set()
-        ):
-            # Played event already received
-            return
-
-        if run_loop_id != self._run_loop_id:
-            # On a different pipeline run now
-            return
-
-        self.tts_response_finished()
 
     @callback
     def _handle_timer(

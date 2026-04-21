@@ -41,6 +41,28 @@ class CustomActions(StrEnum):
 
 
 @dataclass
+class Capabilities(Eventable):
+    """Capabilities event."""
+
+    data: dict[str, Any] | None = None
+    """Data associated with the event."""
+
+    @staticmethod
+    def is_type(event_type: str) -> bool:
+        """Check if the event type matches."""
+        return event_type == CAPABILITIES_EVENT_TYPE
+
+    def event(self) -> Event:
+        """Create an event for the capabilities."""
+        return Event(type=CAPABILITIES_EVENT_TYPE)
+
+    @staticmethod
+    def from_event(event: Event) -> Capabilities:
+        """Create a Capabilities instance from an event."""
+        return Capabilities(data=event.data)
+
+
+@dataclass
 class PipelineEnded(Eventable):
     """Event triggered when a pipeline ends."""
 
@@ -54,7 +76,7 @@ class PipelineEnded(Eventable):
         return Event(type=_PIPELINE_ENDED_EVENT_TYPE)
 
     @staticmethod
-    def from_event(event: Event) -> "PipelineEnded":
+    def from_event(event: Event) -> PipelineEnded:
         """Create a PipelineEnded instance from an event."""
         return PipelineEnded()
 
@@ -85,7 +107,7 @@ class CustomEvent(Eventable):
         )
 
     @staticmethod
-    def from_event(event: Event) -> "CustomEvent":
+    def from_event(event: Event) -> CustomEvent:
         """Create a CustomEvent instance from an event."""
         return CustomEvent(
             event_type=event.data.get("event_type", "unknown"),
