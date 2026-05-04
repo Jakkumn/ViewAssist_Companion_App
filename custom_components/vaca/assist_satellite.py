@@ -38,7 +38,6 @@ from .custom import (
     Capabilities,
     CustomEvent,
     PipelineEnded,
-    get_custom_files_data,
     getIntegrationVersion,
     getVADashboardPath,
 )
@@ -158,6 +157,12 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                 )
                 home = getVADashboardPath(self.hass, self.device.satellite_id)
                 self.device.custom_settings["ha_dashboard"] = home.removeprefix("/")
+
+                # Add custom files data - commented out awaiting implementation
+                # self.device.custom_settings[
+                #    "custom_files"
+                # ] = await get_custom_files_data(self.hass)
+
             # Send config event
             self._custom_settings_changed()
 
