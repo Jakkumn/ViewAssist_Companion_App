@@ -335,6 +335,7 @@ class WyomingSatelliteAppVersionSensor(_WyomingSatelliteDeviceSensorBase):
             "has_front_camera": self.get_capability("has_front_camera"),
             "has_light_sensor": self._device.has_light_sensor(),
             "sensors": self.get_sensor_names(),
+            "audio": self.get_capability("audio"),
         }
 
     def get_capability(self, capability: str) -> Any:

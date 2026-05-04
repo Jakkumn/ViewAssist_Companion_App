@@ -175,12 +175,12 @@ class WyomingSatelliteWakeWordSelect(
             async_dispatcher_connect(
                 self.hass,
                 f"{DOMAIN}_{self._device.device_id}_wakewords_update",
-                self.test,
+                self.update_options_list,
             )
         )
 
-    async def test(self, _data: dict[str, Any]) -> None:
-        """Test method to trigger state update."""
+    async def update_options_list(self, _data: dict[str, Any]) -> None:
+        """Method to trigger state update."""
         self.async_write_ha_state()
 
     async def async_select_option(self, option: str) -> None:
@@ -260,7 +260,7 @@ class WyomingSatelliteWakeWordEngineSelect(
     )
     _attr_should_poll = False
     _attr_current_option = "openwakeword"
-    _attr_options = ["openwakeword", "microwakeword"]
+    _attr_options = ["openwakeword", "openwakeword-rt", "microwakeword"]
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
