@@ -38,7 +38,6 @@ from .custom import (
     Capabilities,
     CustomEvent,
     PipelineEnded,
-    get_custom_files_data,
     getIntegrationVersion,
     getVADashboardPath,
 )
