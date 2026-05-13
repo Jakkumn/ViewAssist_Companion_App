@@ -51,7 +51,9 @@ class VASatelliteDevice(SatelliteDevice):
         )
 
     @callback
-    def set_custom_setting(self, setting: str, value: str | float) -> None:
+    def set_custom_setting(
+        self, setting: str, value: str | float, send_to_device: bool = True
+    ) -> None:
         """Set custom setting."""
         if self.custom_settings is None:
             self.custom_settings = {}
@@ -63,7 +65,7 @@ class VASatelliteDevice(SatelliteDevice):
         else:
             self.custom_settings[setting] = value
 
-        if self._custom_settings_listener is not None:
+        if send_to_device and self._custom_settings_listener is not None:
             self._custom_settings_listener(setting, value)
 
     @callback

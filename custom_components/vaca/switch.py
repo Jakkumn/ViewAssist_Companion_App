@@ -103,9 +103,9 @@ class BaseSwitch(VASatelliteEntity, restore_state.RestoreEntity, SwitchEntity):
             _LOGGER.debug(
                 "Setting %s to %s", self.entity_description.key, self._attr_is_on
             )
-            self._device.set_custom_setting(
-                self.entity_description.key, self._attr_is_on
-            )
+        self._device.set_custom_setting(
+            self.entity_description.key, self._attr_is_on, send_to_device
+        )
 
 
 class BaseFeedbackSwitch(BaseSwitch):
@@ -136,8 +136,6 @@ class BaseFeedbackSwitch(BaseSwitch):
 class WyomingSatelliteScreenSwitch(BaseFeedbackSwitch):
     """Entity to control screen on/off."""
 
-    _listener_class = "status_update"
-
     entity_description = SwitchEntityDescription(
         key="screen_on",
         translation_key="screen_on",
@@ -149,23 +147,6 @@ class WyomingSatelliteScreenSwitch(BaseFeedbackSwitch):
     def icon(self) -> str:
         """Return the icon to use in the frontend."""
         return "mdi:monitor" if self._attr_is_on else "mdi:monitor-off"
-
-    async def status_update(self, data: dict[str, Any]) -> None:
-        """Handle status update."""
-        if settings := data.get("sensors"):
-            if self.entity_description.key in settings:
-                setting_state = settings[self.entity_description.key]
-                await self.do_switch(setting_state, send_to_device=False)
-
-    async def do_switch(self, value: bool, send_to_device: bool = True) -> None:
-        """Perform the switch action."""
-        self._attr_is_on = value
-        self.async_write_ha_state()
-        if send_to_device:
-            if value:
-                self._device.send_custom_action(CustomActions.SCREEN_WAKE)
-            else:
-                self._device.send_custom_action(CustomActions.SCREEN_SLEEP)
 
 
 class WyomingSatelliteMuteSwitch(BaseSwitch):

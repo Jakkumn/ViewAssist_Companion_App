@@ -84,8 +84,9 @@ class BaseNumberEntity(VASatelliteEntity, RestoreNumber):
         )
         self.async_write_ha_state()
 
-        if send_to_device:
-            self._device.set_custom_setting(self.entity_description.key, value)
+        self._device.set_custom_setting(
+            self.entity_description.key, value, send_to_device
+        )
 
 
 class BaseFeedbackNumber(BaseNumberEntity):
@@ -215,7 +216,6 @@ class WyomingSatelliteDuckingVolumeNumber(BaseNumberEntity):
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
         await super().async_added_to_hass()
-        self._attr_native_max_value = self._device.getMaxMusicVolume()
         last_number_data = await self.async_get_last_number_data()
         if (last_number_data is not None) and (
             last_number_data.native_value is not None
