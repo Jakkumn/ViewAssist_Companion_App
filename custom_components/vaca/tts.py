@@ -149,7 +149,7 @@ class WyomingTtsProvider(tts.TextToSpeechEntity):
 
                     data = wav_io.getvalue()
 
-        except OSError, WyomingError:
+        except (OSError, WyomingError):
             return (None, None)
 
         return ("wav", data)
