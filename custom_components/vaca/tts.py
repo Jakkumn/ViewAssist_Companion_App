@@ -1,5 +1,7 @@
 """Support for Wyoming text-to-speech services."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 import io
 import logging
@@ -147,7 +149,7 @@ class WyomingTtsProvider(tts.TextToSpeechEntity):
 
                     data = wav_io.getvalue()
 
-        except (OSError, WyomingError):
+        except OSError, WyomingError:
             return (None, None)
 
         return ("wav", data)

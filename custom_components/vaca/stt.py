@@ -1,5 +1,7 @@
 """Support for Wyoming speech-to-text services."""
 
+from __future__ import annotations
+
 from collections.abc import AsyncIterable
 import logging
 
@@ -127,7 +129,7 @@ class WyomingSttProvider(stt.SpeechToTextEntity):
                         text = transcript.text
                         break
 
-        except (OSError, WyomingError):
+        except OSError, WyomingError:
             _LOGGER.exception("Error processing audio stream")
             return stt.SpeechResult(None, stt.SpeechResultState.ERROR)
 
