@@ -1,5 +1,7 @@
 """Support for Wyoming text-to-speech services."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 import io
 import logging

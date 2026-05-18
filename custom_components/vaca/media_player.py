@@ -18,6 +18,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -49,6 +50,8 @@ async def async_setup_entry(
 class WyomingMediaPlayer(VASatelliteEntity, MediaPlayerEntity):
     """Represents a hassmic media player."""
 
+    _listener_class = "status_update"
+
     entity_description = MediaPlayerEntityDescription(
         key="media_player",
         translation_key="media_player",
@@ -72,8 +75,27 @@ class WyomingMediaPlayer(VASatelliteEntity, MediaPlayerEntity):
     )
 
     async def async_added_to_hass(self) -> None:
-        """When entity is added to Home Assistant."""
+        """Call when entity about to be added to hass."""
         await super().async_added_to_hass()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{self._device.device_id}_{self._listener_class}",
+                self.status_update,
+            )
+        )
+
+    async def status_update(self, status: dict[str, Any]) -> None:
+        """Handle status updates from the device."""
+        if state := status.get("media_player"):
+            _LOGGER.info("Received status update: %s", state)
+            self._attr_state = (
+                MediaPlayerState.IDLE
+                if not state.get("playing", False)
+                else MediaPlayerState.PLAYING
+            )
+            self.async_write_ha_state()
 
     async def async_play_media(
         self,

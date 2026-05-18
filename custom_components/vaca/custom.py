@@ -1,5 +1,7 @@
 """# Custom components for View Assist satellite integration with Wyoming events."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum
 import logging

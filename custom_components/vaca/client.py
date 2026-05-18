@@ -1,5 +1,7 @@
 """Custom AsyncTCPClient for Wyoming events."""
 
+from __future__ import annotations
+
 from wyoming.client import AsyncTcpClient
 from wyoming.event import Event
 

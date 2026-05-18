@@ -408,7 +408,7 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
         self._run_pipeline_once(
             RunPipeline(
                 start_stage=PipelineStage.ASR,
-                end_stage=PipelineStage.ASR,
+                end_stage=PipelineStage.TTS,
                 restart_on_end=False,
             )
         )
@@ -424,7 +424,9 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                     CustomEvent(
                         SETTINGS_EVENT_TYPE,
                         {
-                            SETTINGS_EVENT_TYPE: self.device.custom_settings
+                            SETTINGS_EVENT_TYPE: dict(
+                                sorted(self.device.custom_settings.items())
+                            )
                             if setting is None
                             else {setting: value}
                         },
