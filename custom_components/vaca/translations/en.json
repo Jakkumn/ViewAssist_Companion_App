@@ -50,6 +50,11 @@
                 "name": "Wake"
             }
         },
+        "event": {
+            "gesture": {
+                "name": "Gesture"
+            }
+        },
         "media_player": {
             "media_player": {
                 "name": "Media Player",
@@ -132,14 +137,10 @@
                 "name": "Wake word"
             },
             "wake_word_sound": {
-                "name": "Wake word sound",
-                "state": {
-                    "none": "None",
-                    "havpe": "Home Assistant",
-                    "alexa": "Alexa",
-                    "bubble": "Bubble",
-                    "ding": "Ding"
-                }
+                "name": "Wake word sound"
+            },
+            "alarm_sound": {
+                "name": "Alarm sound"
             },
             "screen_timeout": {
                 "name": "Screen timeout",
@@ -161,6 +162,14 @@
                     "landscape": "Landscape",
                     "reverse_portrait": "Reverse Portrait",
                     "reverse_landscape": "Reverse Landscape"
+                }
+            },
+            "motion_detection_mode": {
+                "name": "Motion detection",
+                "state": {
+                    "none": "Off",
+                    "motion": "Motion",
+                    "face": "Face"
                 }
             }
         },
@@ -205,8 +214,8 @@
             "screen_on": {
                 "name": "Screen"
             },
-            "swipe_refresh": {
-                "name": "Swipe to refresh"
+            "quick_actions": {
+                "name": "Quick actions"
             },
             "screen_auto_brightness": {
                 "name": "Auto brightness"

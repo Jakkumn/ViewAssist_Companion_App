@@ -50,6 +50,11 @@
                 "name": "Aufwecken"
             }
         },
+        "event": {
+            "gesture": {
+                "name": "Geste"
+            }
+        },
         "media_player": {
             "media_player": {
                 "name": "Mediaplayer",
@@ -90,6 +95,9 @@
             },
             "raw_proximity_threshold": {
                 "name": "Annäherungsschwellenwert"
+            },
+            "bump_sensitivity": {
+                "name": "Empfindlichkeit bei Berührung"
             }
         },
         "select": {
@@ -141,6 +149,14 @@
                     "600": "10 Minuten",
                     "1800": "30 Minuten"
                 }
+            },
+            "motion_detection_mode": {
+                "name": "Bewegungserkennungsmodus",
+                "state": {
+                    "off": "Aus",
+                    "on": "Ein",
+                    "only_dark": "Nur bei Dunkelheit"
+                }
             }
         },
         "sensor": {
@@ -181,8 +197,8 @@
             "mute": {
                 "name": "Stumm"
             },
-            "swipe_refresh": {
-                "name": "Wischen zum Aktualisieren"
+            "quick_actions": {
+                "name": "Schnellaktionen"
             },
             "screen_auto_brightness": {
                 "name": "Automatische Helligkeit"
@@ -204,9 +220,6 @@
             },
             "alarm": {
                 "name": "Alarm"
-            },
-            "enable_motion_detection": {
-                "name": "Bewegungserkennung"
             },
             "screen_on_wake_word": {
                 "name": "Bildschirm an bei Weckwort"
