@@ -119,7 +119,7 @@ class WyomingSatelliteScreenOnBinarySensor(_WyomingSatelliteDeviceBinarySensorBa
 
 
 class WyomingSatelliteMotionDetectedSensor(_WyomingSatelliteDeviceBinarySensorBase):
-    """Entity to represent screen on status sensor for satellite."""
+    """Entity to represent motion detected sensor for satellite."""
 
     detection_reset_task: Task | None = None
     _dont_restore_state = True
@@ -129,23 +129,3 @@ class WyomingSatelliteMotionDetectedSensor(_WyomingSatelliteDeviceBinarySensorBa
         icon="mdi:monitor",
         device_class=BinarySensorDeviceClass.MOTION,
     )
-
-    @callback
-    def status_update(self, data: dict[str, Any]) -> None:
-        """Update entity."""
-        super().status_update(data)
-        if (
-            self.detection_reset_task is not None
-            and not self.detection_reset_task.done()
-        ):
-            self.detection_reset_task.cancel()
-
-        self.detection_reset_task = self.hass.async_create_background_task(
-            self.reset_detection(), name="VACA Motion Detection Reset"
-        )
-
-    async def reset_detection(self) -> None:
-        """Reset motion detection."""
-        await asyncio.sleep(20)
-        self._attr_is_on = False
-        self.schedule_update_ha_state()

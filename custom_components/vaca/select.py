@@ -52,18 +52,23 @@ async def async_setup_entry(
     # Setup is only forwarded for satellites
     assert item.device is not None
 
-    async_add_entities(
-        [
-            WyomingSatellitePipelineSelect(hass, device),
-            WyomingSatelliteNoiseSuppressionLevelSelect(device),
-            WyomingSatelliteVadSensitivitySelect(hass, device),
-            WyomingSatelliteWakeWordEngineSelect(device),
-            WyomingSatelliteWakeWordSelect(device),
-            WyomingSatelliteWakeWordSoundSelect(device),
-            WyomingSatelliteScreenTimeoutSelect(device),
-            WyomingSatelliteScreenOrientationModeSelect(device),
-        ]
-    )
+    entities = [
+        WyomingSatellitePipelineSelect(hass, device),
+        WyomingSatelliteNoiseSuppressionLevelSelect(device),
+        WyomingSatelliteVadSensitivitySelect(hass, device),
+        WyomingSatelliteWakeWordEngineSelect(device),
+        WyomingSatelliteWakeWordSelect(device),
+        WyomingSatelliteWakeWordSoundSelect(device),
+        WyomingSatelliteAlarmSoundSelect(device),
+        WyomingSatelliteScreenTimeoutSelect(device),
+        WyomingSatelliteScreenOrientationModeSelect(device),
+    ]
+
+    if device.capabilities and device.capabilities.get("has_front_camera"):
+        entities.append(WyomingSatelliteMotionDetectionModeSelect(device))
+
+    if entities:
+        async_add_entities(entities)
 
 
 class WyomingSatellitePipelineSelect(VASatelliteEntity, AssistPipelineSelect):
@@ -127,6 +132,36 @@ class WyomingSatelliteVadSensitivitySelect(VASatelliteEntity, VadSensitivitySele
         self.device.set_vad_sensitivity(VadSensitivity(option))
 
 
+class WyomingSatelliteMotionDetectionModeSelect(
+    VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
+):
+    """Entity to represent motion detection mode setting."""
+
+    entity_description = SelectEntityDescription(
+        key="motion_detection_mode",
+        translation_key="motion_detection_mode",
+        entity_category=EntityCategory.CONFIG,
+        icon="mdi:motion-sensor",
+    )
+    _attr_should_poll = False
+    _attr_current_option = "none"
+    _attr_options = ["none", "motion", "face"]
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None and state.state in self.options:
+            self._attr_current_option = state.state
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        self._attr_current_option = option
+        self.async_write_ha_state()
+        self._device.set_custom_setting(self.entity_description.key, option)
+
+
 class WyomingSatelliteWakeWordSelect(
     VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
 ):
@@ -136,6 +171,7 @@ class WyomingSatelliteWakeWordSelect(
         key="wake_word",
         translation_key="wake_word",
         entity_category=EntityCategory.CONFIG,
+        icon="mdi:account-voice",
     )
     _attr_should_poll = False
     _attr_current_option = "hey_jarvis"
@@ -174,6 +210,14 @@ class WyomingSatelliteWakeWordSelect(
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
+                f"{DOMAIN}_{self._device.device_id}_info_update",
+                self.update_options_list,
+            )
+        )
+        # Add listener for chaging wake word engine selector
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
                 f"{DOMAIN}_{self._device.device_id}_wakewords_update",
                 self.update_options_list,
             )
@@ -199,10 +243,27 @@ class WyomingSatelliteWakeWordSoundSelect(
         key="wake_word_sound",
         translation_key="wake_word_sound",
         entity_category=EntityCategory.CONFIG,
+        icon="mdi:bell-circle-outline",
     )
     _attr_should_poll = False
-    _attr_current_option = "havpe"
-    _attr_options = ["none", "alexa", "havpe", "ding", "bubble"]
+    _attr_current_option = "None"
+
+    @property
+    def options(self) -> list[str]:
+        """Return the list of available wake word sound options."""
+        options = ["None"]
+        options.extend(self.get_wake_word_sound_options())
+        return options
+
+    def get_wake_word_sound_options(self) -> list[str]:
+        """Return the list of available wake word sound options."""
+        wake_sound_options: list[str] = []
+        if self._device.capabilities and self._device.capabilities.get("wake_sounds"):
+            wake_sound_options = [
+                wake_sound.get("name", "Unknown")
+                for wake_sound in self._device.capabilities["wake_sounds"]
+            ]
+        return wake_sound_options
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""
@@ -212,11 +273,25 @@ class WyomingSatelliteWakeWordSoundSelect(
         if state is not None and state.state in self.options:
             await self.async_select_option(state.state)
 
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{self._device.device_id}_capabilities_update",
+                self.update_options_list,
+            )
+        )
+
+    async def update_options_list(self, _data: dict[str, Any]) -> None:
+        """Method to trigger state update."""
+        self.async_write_ha_state()
+
     async def async_select_option(self, option: str) -> None:
         """Select an option."""
         self._attr_current_option = option
         self.async_write_ha_state()
-        self._device.set_custom_setting("wake_word_sound", option)
+        self._device.set_custom_setting(
+            "wake_word_sound", option.lower().replace(" ", "_")
+        )
 
 
 class WyomingSatelliteScreenTimeoutSelect(
@@ -228,6 +303,7 @@ class WyomingSatelliteScreenTimeoutSelect(
         key="screen_timeout",
         translation_key="screen_timeout",
         entity_category=EntityCategory.CONFIG,
+        icon="mdi:timer-sand",
     )
     _attr_should_poll = False
     _attr_current_option = "60"
@@ -248,6 +324,64 @@ class WyomingSatelliteScreenTimeoutSelect(
         self._device.set_custom_setting(self.entity_description.key, int(option))
 
 
+class WyomingSatelliteAlarmSoundSelect(
+    VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
+):
+    """Entity to represent alarm sound setting."""
+
+    entity_description = SelectEntityDescription(
+        key="alarm_sound",
+        translation_key="alarm_sound",
+        entity_category=EntityCategory.CONFIG,
+        icon="mdi:alarm",
+    )
+    _attr_should_poll = False
+    _attr_current_option = "Default"
+
+    @property
+    def options(self) -> list[str]:
+        """Return the list of available alarm sound options."""
+        options = []
+        options.extend(self.get_alarm_sound_options())
+        return options
+
+    def get_alarm_sound_options(self) -> list[str]:
+        """Return the list of available alarm sound options."""
+        alarm_sound_options: list[str] = []
+        if self._device.capabilities and self._device.capabilities.get("alarms"):
+            alarm_sound_options = [
+                alarm_sound.get("name", "Unknown")
+                for alarm_sound in self._device.capabilities["alarms"]
+            ]
+        return alarm_sound_options
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+
+        state = await self.async_get_last_state()
+        if state is not None and state.state in self.options:
+            await self.async_select_option(state.state)
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{self._device.device_id}_capabilities_update",
+                self.update_options_list,
+            )
+        )
+
+    async def update_options_list(self, _data: dict[str, Any]) -> None:
+        """Method to trigger state update."""
+        self.async_write_ha_state()
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        self._attr_current_option = option
+        self.async_write_ha_state()
+        self._device.set_custom_setting("alarm_sound", option.lower().replace(" ", "_"))
+
+
 class WyomingSatelliteWakeWordEngineSelect(
     VASatelliteEntity, SelectEntity, restore_state.RestoreEntity
 ):
@@ -257,6 +391,7 @@ class WyomingSatelliteWakeWordEngineSelect(
         key="wake_word_engine",
         translation_key="wake_word_engine",
         entity_category=EntityCategory.CONFIG,
+        icon="mdi:microphone-settings",
     )
     _attr_should_poll = False
     _attr_current_option = "openwakeword"
@@ -296,6 +431,7 @@ class WyomingSatelliteScreenOrientationModeSelect(
         key="screen_orientation_mode",
         translation_key="screen_orientation_mode",
         entity_category=EntityCategory.CONFIG,
+        icon="mdi:screen-rotation",
     )
     _attr_should_poll = False
     _attr_current_option = "auto"

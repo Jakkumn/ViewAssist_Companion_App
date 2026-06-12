@@ -11,3 +11,11 @@ SAMPLE_CHANNELS = 1
 ATTR_SPEAKER = "speaker"
 
 INTENT_EVENT = f"{DOMAIN}_intent_event"
+
+URL_BASE = DOMAIN
+CUSTOM_PATH = "custom"
+MWW_PATH = "microwakeword"
+OWW_PATH = "openwakeword"
+WW_SOUNDS_PATH = "wakeword_sounds"
+ALARMS_PATH = "alarms"
+SUB_DIRS = [MWW_PATH, OWW_PATH, WW_SOUNDS_PATH, ALARMS_PATH]
