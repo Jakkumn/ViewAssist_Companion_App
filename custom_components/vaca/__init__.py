@@ -19,6 +19,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import ATTR_SPEAKER, DOMAIN
 from .data import VAWyomingService
 from .devices import VASatelliteDevice
+from .http import HTTPManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ SATELLITE_PLATFORMS = [
     Platform.ASSIST_SATELLITE,
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.EVENT,
     Platform.SELECT,
     Platform.SWITCH,
     Platform.MEDIA_PLAYER,
@@ -68,6 +70,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, service.platforms)
     entry.async_on_unload(entry.add_update_listener(update_listener))
+
+    http = HTTPManager(hass, entry)
+    await http.create_url_paths()
 
     if (satellite_info := service.info.satellite) is not None:
         # Create satellite device

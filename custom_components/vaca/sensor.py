@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import reduce
 import logging
 from typing import TYPE_CHECKING, Any
+from datetime import timedelta
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -218,7 +219,7 @@ class _WyomingSatelliteDeviceSensorBase(VASatelliteEntity, RestoreSensor):
     def _get_timestamp_from_string(self, timestamp_str: str) -> Any:
         """Convert timestamp string to datetime object."""
         if timestamp_str.startswith("1970-01-01"):
-            return None
+            return now() - timedelta(days=14)  # Default to a long time ago
         if parsed_time := parse_datetime(timestamp_str):
             if parsed_time > now(parsed_time.tzinfo):
                 return now(parsed_time.tzinfo)
@@ -299,7 +300,7 @@ class WyomingSatelliteBrowserPathSensor(_WyomingSatelliteDeviceSensorBase):
 class WyomingSatelliteLastMotionSensor(_WyomingSatelliteDeviceSensorBase):
     """Entity to represent last motion for satellite."""
 
-    _attr_native_value = UNKNOWN
+    _attr_native_value = now() - timedelta(days=14)  # Default to a long time ago
     entity_description = SensorEntityDescription(
         key="last_motion",
         translation_key="last_motion",

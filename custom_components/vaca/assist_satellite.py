@@ -9,7 +9,7 @@ from typing import Any, Final
 from wyoming.audio import AudioChunk, AudioStart, AudioStop
 from wyoming.event import Event
 from wyoming.handle import Handled
-from wyoming.info import Describe
+from wyoming.info import Describe, Info
 from wyoming.pipeline import PipelineStage, RunPipeline
 from wyoming.satellite import RunSatellite
 
@@ -38,6 +38,7 @@ from .custom import (
     Capabilities,
     CustomEvent,
     PipelineEnded,
+    get_custom_files_data,
     getIntegrationVersion,
     getVADashboardPath,
 )
@@ -159,9 +160,11 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                 self.device.custom_settings["ha_dashboard"] = home.removeprefix("/")
 
                 # Add custom files data - commented out awaiting implementation
-                # self.device.custom_settings[
-                #    "custom_files"
-                # ] = await get_custom_files_data(self.hass)
+                self.device.custom_settings[
+                    "custom_files"
+                ] = await self.hass.async_add_executor_job(
+                    get_custom_files_data, self.hass
+                )
 
             # Send config event
             self._custom_settings_changed()
@@ -178,6 +181,15 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
             async_dispatcher_send(
                 self.hass,
                 f"{DOMAIN}_{self.device.device_id}_capabilities_update",
+                event.data or {},
+            )
+            return False, None
+
+        if event and Info.is_type(event.type):
+            self.device.info = Info.from_event(event)
+            async_dispatcher_send(
+                self.hass,
+                f"{DOMAIN}_{self.device.device_id}_info_update",
                 event.data or {},
             )
             return False, None

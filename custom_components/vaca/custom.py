@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 import logging
+from pathlib import Path
 from typing import Any
 
 from awesomeversion import AwesomeVersion
@@ -14,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import DOMAIN
+from .const import DOMAIN, SUB_DIRS, CUSTOM_PATH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class CustomActions(StrEnum):
     SCREEN_SLEEP = "screen-sleep"
     SCREEN_WAKE = "screen-wake"
     TOAST_MESSAGE = "toast-message"
+    UPDATE_CUSTOM_FILES = "update-custom-files"
     WAKE = "wake"
 
 
@@ -151,3 +153,34 @@ def getVADashboardPath(hass: HomeAssistant, uuid: str) -> str:
                 _LOGGER.error("Error getting dashboard path: %s", e)
                 continue
     return ""
+
+
+def get_custom_files_data(hass: HomeAssistant) -> dict[str, str] | None:
+    """Get custom files data."""
+
+    files_json = {}
+    vaca_dir = Path(hass.config.path(DOMAIN), CUSTOM_PATH)
+    for sub_dir in SUB_DIRS:
+        dir_path = vaca_dir / sub_dir
+        if dir_path.exists() and dir_path.is_dir():
+            files_json[sub_dir] = {}
+            for file in dir_path.iterdir():
+                if file.is_file() and file.suffix in [
+                    ".onnx",
+                    ".tflite",
+                    ".json",
+                    ".mp3",
+                    ".wav",
+                ]:
+                    filename = file.name.split(".")[0]
+                    extension = file.suffix.strip(".")
+                    timestamp = int(file.stat().st_mtime)
+
+                    if files_json[sub_dir].get(filename) is None:
+                        files_json[sub_dir][filename] = {
+                            "extensions": [extension],
+                            "timestamp": timestamp,
+                        }
+                    else:
+                        files_json[sub_dir][filename]["extensions"].append(extension)
+    return files_json

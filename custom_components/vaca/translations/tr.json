@@ -47,6 +47,11 @@
                 "name": "Uyandır"
             }
         },
+        "event": {
+            "gesture": {
+                "name": "Jest"
+            }
+        },
         "media_player": {
             "media_player": {
                 "name": "Medya Oynatıcı",
@@ -138,6 +143,14 @@
                     "600": "10 dakika",
                     "1800": "30 dakika"
                 }
+            },
+            "motion_detection_mode": {
+                "name": "Hareket algılama modu",
+                "state": {
+                    "off": "Kapalı",
+                    "on": "Açık",
+                    "only_dark": "Sadece karanlıkta"
+                }
             }
         },
         "sensor": {
@@ -178,8 +191,8 @@
             "mute": {
                 "name": "Sessiz"
             },
-            "swipe_refresh": {
-                "name": "Kaydırarak yenile"
+            "quick_actions": {
+                "name": "Hızlı eylemler"
             },
             "screen_auto_brightness": {
                 "name": "Otomatik parlaklık"
@@ -201,9 +214,6 @@
             },
             "alarm": {
                 "name": "Alarm"
-            },
-            "enable_motion_detection": {
-                "name": "Hareket algılama"
             },
             "screen_on_wake_word": {
                 "name": "Uyandırma kelimesiyle ekranı aç"

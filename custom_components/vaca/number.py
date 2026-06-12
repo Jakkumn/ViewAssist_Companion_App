@@ -390,7 +390,7 @@ class WyomingSatelliteMotionDetectionSensitivityNumber(
         self._attr_native_value = value
         self.async_write_ha_state()
         # Sensitivity is sent as 0-50 scale
-        self._device.set_custom_setting(self.entity_description.key, int(value / 2))
+        self._device.set_custom_setting(self.entity_description.key, int(value))
 
 
 class WyomingSatelliteBumpDetectionSensitivityNumber(VASatelliteEntity, RestoreNumber):
