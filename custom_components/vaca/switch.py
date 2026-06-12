@@ -14,7 +14,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .custom import CustomActions
 from .devices import VASatelliteDevice
 from .entity import VASatelliteEntity
 
@@ -38,7 +37,7 @@ async def async_setup_entry(
     entities = [
         WyomingSatelliteMuteSwitch(device),
         WyomingSatelliteScreenSwitch(device),
-        WyomingSatelliteSwipeToRefreshSwitch(device),
+        WyomingSatelliteQuickActionsSheetSwitch(device),
         WyomingSatelliteScreenAutoBrightnessSwitch(device),
         WyomingSatelliteScreenAlwaysOnSwitch(device),
         WyomingSatelliteDarkModeSwitch(device),
@@ -60,7 +59,6 @@ async def async_setup_entry(
         entities.append(WyomingSatelliteScreenOnProximitySwitch(device))
 
     if device.capabilities and device.capabilities.get("has_front_camera"):
-        entities.append(WyomingSatelliteEnableMotionDetectionSwitch(device))
         entities.append(WyomingSatelliteScreenOnMotionSwitch(device))
 
     if entities:
@@ -161,20 +159,20 @@ class WyomingSatelliteMuteSwitch(BaseSwitch):
         return "mdi:microphone-off" if self._attr_is_on else "mdi:microphone"
 
 
-class WyomingSatelliteSwipeToRefreshSwitch(BaseSwitch):
-    """Entity to control swipe to refresh."""
+class WyomingSatelliteQuickActionsSheetSwitch(BaseSwitch):
+    """Entity to control quick actions sheet."""
 
     entity_description = SwitchEntityDescription(
-        key="swipe_refresh",
-        translation_key="swipe_refresh",
-        icon="mdi:web-refresh",
+        key="quick_actions",
+        translation_key="quick_actions",
+        icon="mdi:gesture-tap-button",
         entity_category=EntityCategory.CONFIG,
     )
     default_on = True
 
 
 class WyomingSatelliteScreenAutoBrightnessSwitch(BaseSwitch):
-    """Entity to control swipe to refresh."""
+    """Entity to control screen auto brightness."""
 
     entity_description = SwitchEntityDescription(
         key="screen_auto_brightness",
@@ -299,18 +297,6 @@ class WyomingSatelliteScreenOnProximitySwitch(BaseSwitch):
         key="screen_on_proximity",
         translation_key="screen_on_proximity",
         icon="mdi:radar",
-        entity_category=EntityCategory.CONFIG,
-    )
-    default_on = False
-
-
-class WyomingSatelliteEnableMotionDetectionSwitch(BaseSwitch):
-    """Entity to control motion detection."""
-
-    entity_description = SwitchEntityDescription(
-        key="enable_motion_detection",
-        translation_key="enable_motion_detection",
-        icon="mdi:motion-sensor",
         entity_category=EntityCategory.CONFIG,
     )
     default_on = False
