@@ -52,6 +52,6 @@ class HTTPManager:
 
         # Create out list of standard sub dirs
         for sub_dir in SUB_DIRS:
-            Path(vaca_dir, CUSTOM_PATH, sub_dir).mkdir(exist_ok=True)
+            Path(vaca_dir, CUSTOM_PATH, sub_dir).mkdir(exist_ok=True, parents=True)
 
         await self._async_register_path(f"/{URL_BASE}", vaca_dir)
