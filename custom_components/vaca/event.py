@@ -56,7 +56,7 @@ class WyomingGestureEvent(VASatelliteEntity, EventEntity):
         icon="mdi:gesture-swipe",
     )
     _touch_points = [1, 2, 3]
-    _gestures = ["left", "right", "up", "down"]
+    _gestures = ["left", "right", "up", "down", "up_right", "up_left", "down_right", "down_left", "left_up", "right_up", "left_down", "right_down"]
 
     async def async_added_to_hass(self) -> None:
         """Call when entity about to be added to hass."""
