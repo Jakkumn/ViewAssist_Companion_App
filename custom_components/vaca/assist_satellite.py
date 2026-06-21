@@ -204,6 +204,9 @@ class ViewAssistSatelliteEntity(WyomingAssistSatellite, VASatelliteEntity):
                     evt.event_type,
                     evt.event_data,
                 )
+                if evt.event_type == SETTINGS_EVENT_TYPE and not evt.event_data:
+                    # Send config event
+                    self._custom_settings_changed()
 
             async_dispatcher_send(
                 self.hass,
