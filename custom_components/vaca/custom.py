@@ -15,7 +15,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import DOMAIN, SUB_DIRS, CUSTOM_PATH
+from .const import (
+    ALARMS_PATH,
+    DOMAIN,
+    MWW_PATH,
+    OWW_PATH,
+    SUB_DIRS,
+    CUSTOM_PATH,
+    WW_SOUNDS_PATH,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -155,32 +163,52 @@ def getVADashboardPath(hass: HomeAssistant, uuid: str) -> str:
     return ""
 
 
-def get_custom_files_data(hass: HomeAssistant) -> dict[str, str] | None:
-    """Get custom files data."""
+@dataclass
+class CustomFileFormat:
+    file_type: str
+    path: str
+    required_files: list[str]
 
-    files_json = {}
+
+custom_file_formats = [
+    CustomFileFormat(file_type="openwakeword", path=OWW_PATH, required_files=["onnx"]),
+    CustomFileFormat(
+        file_type="openwakeword_rt", path=OWW_PATH, required_files=["tflite"]
+    ),
+    CustomFileFormat(
+        file_type="microwakeword", path=MWW_PATH, required_files=["json", "tflite"]
+    ),
+    CustomFileFormat(
+        file_type="wakeword_sounds", path=WW_SOUNDS_PATH, required_files=["mp3", "wav"]
+    ),
+    CustomFileFormat(
+        file_type="alarms", path=ALARMS_PATH, required_files=["mp3", "wav"]
+    ),
+]
+
+
+def get_custom_files_data(hass: HomeAssistant) -> dict[str, str] | None:
+    """Get custom files info."""
+
+    files_info = {}
     vaca_dir = Path(hass.config.path(DOMAIN), CUSTOM_PATH)
-    for sub_dir in SUB_DIRS:
-        dir_path = vaca_dir / sub_dir
+    for format in custom_file_formats:
+        dir_path = vaca_dir / format.path
         if dir_path.exists() and dir_path.is_dir():
-            files_json[sub_dir] = {}
+            files_info[format.file_type] = {}
             for file in dir_path.iterdir():
-                if file.is_file() and file.suffix in [
-                    ".onnx",
-                    ".tflite",
-                    ".json",
-                    ".mp3",
-                    ".wav",
-                ]:
+                if file.is_file() and file.suffix.strip(".") in format.required_files:
                     filename = file.name.split(".")[0]
                     extension = file.suffix.strip(".")
                     timestamp = int(file.stat().st_mtime)
 
-                    if files_json[sub_dir].get(filename) is None:
-                        files_json[sub_dir][filename] = {
+                    if files_info[format.file_type].get(filename) is None:
+                        files_info[format.file_type][filename] = {
                             "extensions": [extension],
                             "timestamp": timestamp,
                         }
                     else:
-                        files_json[sub_dir][filename]["extensions"].append(extension)
-    return files_json
+                        files_info[format.file_type][filename]["extensions"].append(
+                            extension
+                        )
+    return files_info
