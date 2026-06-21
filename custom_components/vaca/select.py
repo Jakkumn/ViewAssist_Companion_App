@@ -395,7 +395,7 @@ class WyomingSatelliteWakeWordEngineSelect(
     )
     _attr_should_poll = False
     _attr_current_option = "openwakeword"
-    _attr_options = ["openwakeword", "openwakeword-rt", "microwakeword"]
+    _attr_options = ["openwakeword", "openwakeword_rt", "microwakeword"]
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to Home Assistant."""

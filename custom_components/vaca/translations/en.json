@@ -129,7 +129,7 @@
                 "name": "Wake word engine",
                 "state": {
                     "openwakeword": "OpenWakeWord(onnx)",
-                    "openwakeword-rt": "OpenWakeWord(tflite)",
+                    "openwakeword_rt": "OpenWakeWord(tflite)",
                     "microwakeword": "MicroWakeWord"
                 }
             },
